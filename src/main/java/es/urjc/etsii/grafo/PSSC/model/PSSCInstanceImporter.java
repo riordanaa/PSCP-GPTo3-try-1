@@ -2,47 +2,61 @@ package es.urjc.etsii.grafo.PSSC.model;
 
 import es.urjc.etsii.grafo.io.InstanceImporter;
 import es.urjc.etsii.grafo.util.collections.BitSet;
+import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Scanner;
 
-public class PSSCInstanceImporter extends InstanceImporter<PSSCInstance> {
+/**
+ * Spring‑boot bean that loads OR‑Library SCP / PSCP instances.
+ *
+ * <pre>
+ *   m  n                # points (rows), sets (columns)
+ *   c1 … cn             # costs (ignored, all 1)
+ *   repeat m times:
+ *       k_p             # sets covering point p
+ *       s1 … s_kp       # 1‑based column indices (may wrap lines)
+ * </pre>
+ */
+@Service
+public class PSSCInstanceImporter
+        extends InstanceImporter<PSSCInstance> {
 
-    /**
-     * Load instance from file. This method is called by the framework when a new instance is being loaded.
-     * Note that instance load time is never considered in the total execution time.
-     * @param reader Input buffer, managed by the framework.
-     * @param suggestedName Suggested filename for the instance, can be ignored.
-     *                      By default, the suggested filename is built by removing the path and extension info.
-     *                      For example, for the path "instances/TSP/TSP-1.txt", the suggestedName would be "TSP-1"
-     * @return immutable instance
-     * @throws IOException If an error is encountered while the instance is being parsed
-     */
+    /** Framework‑required method (BufferedReader + filename). */
     @Override
-    public PSSCInstance importInstance(BufferedReader reader, String suggestedName) throws IOException {
-        Scanner sc = new Scanner(reader);
-        int nSets = sc.nextInt(), nPoints = sc.nextInt();
+    public PSSCInstance importInstance(BufferedReader reader, String filename)
+            throws IOException {
 
-        int[] weights = new int[nPoints];
-        for (int i = 0; i < nPoints; i++) {
-            weights[i] = sc.nextInt();
-        }
+        try (Scanner sc = new Scanner(reader)) {
 
-        BitSet[] coverage = new BitSet[nSets];
-        for (int i = 0; i < coverage.length; i++) {
-            coverage[i] = new BitSet(nPoints);
-            int nPointsInSet = sc.nextInt();
-            for (int j = 0; j < nPointsInSet; j++) {
-                int point = sc.nextInt() - 1; // 1-based to 0-based indexing
-                coverage[i].add(point);
+            /* ---------- 1. header ------------------------------------------ */
+            int nPoints = sc.nextInt();   // m (rows)
+            int nSets   = sc.nextInt();   // n (columns)
+
+            /* ---------- 2. skip cost vector (unicost instances) ------------ */
+            for (int i = 0; i < nSets; i++) sc.nextInt();
+
+            /* ---------- 3. init coverage array ----------------------------- */
+            BitSet[] coverage = new BitSet[nSets];
+            for (int s = 0; s < nSets; s++) {
+                coverage[s] = new BitSet(nPoints);
             }
+
+            /* ---------- 4. read point blocks ------------------------------- */
+            for (int p = 0; p < nPoints; p++) {
+                if (!sc.hasNextInt()) {
+                    throw new IOException("Unexpected EOF at point " + p +
+                                          " in instance " + filename);
+                }
+                int k = sc.nextInt();                // sets covering point p
+                for (int h = 0; h < k; h++) {
+                    int setIdx = sc.nextInt() - 1;   // 1‑based → 0‑based
+                    coverage[setIdx].add(p);
+                }
+            }
+
+            return new PSSCInstance(nSets, nPoints, coverage, filename);
         }
-
-        // Call instance constructor when we have parsed all the data
-        var instance = new PSSCInstance(nSets, nPoints, coverage, suggestedName);
-
-        // IMPORTANT! Remember that instance data must be immutable from this point
-        return instance;
     }
 }
