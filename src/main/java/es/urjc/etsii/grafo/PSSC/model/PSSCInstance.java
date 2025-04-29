@@ -27,14 +27,6 @@ public class PSSCInstance extends Instance {
      */
     private final BitSet uselessSets;
 
-    /**
-     * BitSet which contains the sets that are needed if we must cover all points.
-     * In other words, if a point is only covered by one set, that set will be included in the returned BitSet.
-     * Note that in this problem, because the coverage is < 1, we do not need to cover all points, and this sets
-     * do not necessarily have to be included in the solution.
-     */
-    private final BitSet supportSets;
-
 
     public PSSCInstance(int nSets, int nPoints, BitSet[] coverage, String name){
         super(name);
@@ -56,24 +48,9 @@ public class PSSCInstance extends Instance {
             }
         }
 
-        supportSets = new BitSet(nSets);
-        for (int i = 0; i < this.nPoints; i++) {
-            BitSet coveredBy = new BitSet(nSets);
-            for (int j = 0; j < this.nSets; j++) {
-                if (coverage[j].get(i)) {
-                    coveredBy.add(j);
-                }
-            }
-            if(coveredBy.size() == 1){
-                supportSets.add(coveredBy.nextSetBit(0));
-            }
-        }
-
-
         setProperty("nSets", nSets);
         setProperty("nPoints", nPoints);
         setProperty("nUselessSets", uselessSets.size());
-        setProperty("nSupport", supportSets.size());
     }
 
 
